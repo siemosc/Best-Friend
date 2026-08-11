@@ -1,0 +1,87 @@
+[project]
+name = "bestfiend-monorepo"
+version = "0.1.0"
+description = "Monorepo root for BestFiend services (tooling only)."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = []
+
+# Корневой pyproject держит только единый ruff-конфиг монорепо (ниже).
+# pyright/pytest — per-service: core имеет свой `core/pyproject.toml`,
+# QA-раннер генерит ad-hoc pyrightconfig.json и делегирует pytest в venv цели.
+
+# ─── Ruff ──────────────────────────────────────────────────────────
+# Единый конфиг для всего монорепо. Запускается из tools/qa/.venv,
+# применяется ко всем сервисам и пакетам.
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+exclude = [
+    ".venv",
+    "**/.venv",
+    "**/__pycache__",
+    "**/*.egg-info",
+    "logs",
+    "**/logs",
+    ".git",
+    ".docs",
+    ".tmp",
+    "tools/qa/.cache",
+]
+
+[tool.ruff.lint]
+# E    - pycodestyle errors (включая E402 - импорты не вверху файла)
+# F    - pyflakes (неиспользуемые импорты, переменные)
+# I    - isort (сортировка и группировка импортов)
+# UP   - pyupgrade (модернизация синтаксиса)
+# B    - bugbear (распространённые ошибки)
+# SIM  - simplifications
+# C4   - comprehensions
+# TID  - tidy-imports (запрет относительных импортов)
+# ICN  - import-conventions (стандартные псевдонимы)
+# PIE  - flake8-pie
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "TID", "ICN", "PIE"]
+
+ignore = [
+    "E501",  # длинные строки регулирует formatter
+]
+
+[tool.ruff.lint.isort]
+force-single-line = false
+force-sort-within-sections = true
+lines-after-imports = 2
+known-first-party = [
+    "bestfiend",
+    # Пакет tests сервиса: общие стабы/хелперы импортируются абсолютным путём
+    # (ban-relative-imports = parents запрещает `..stubs`).
+    "tests",
+]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI-паттерн: Depends()/Query()/Body() в default args — это не мутабельные
+# вызовы, B008 для них не применим.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Cookie",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Security",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

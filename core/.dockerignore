@@ -1,0 +1,28 @@
+# Виртуальное окружение — пересобирается в стадии build
+.venv/
+
+# Секреты и локальные env: в образ не попадают, приезжают через compose env_file.
+# .env.example тоже не нужен в рантайме.
+.env
+.env.*
+
+# Тесты в рантайм-образ не нужны
+tests/
+
+# Кэши инструментов и байткод
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# VCS и Docker-артефакты
+.git/
+.gitignore
+Dockerfile
+.dockerignore
+
+# IDE
+.vscode/
+.idea/

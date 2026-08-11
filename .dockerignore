@@ -1,0 +1,30 @@
+# Виртуальные окружения
+**/.venv
+
+# Python-кеши
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+
+# Git, IDE, временные файлы
+.git
+.tmp
+.cursor
+.vscode
+.windsurf
+.kiro
+.rules
+.claude
+
+# Тесты и линтеры
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+
+# Документация и планы
+docs
+.plans
+
+# Логи
+logs
+**/*.log

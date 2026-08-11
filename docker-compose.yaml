@@ -1,0 +1,136 @@
+# Единый docker-compose BestFiend: инфраструктура (postgres, seaweedfs)
+# и приложение (core, web) под профилем app.
+#
+# Поисковый backend (SearXNG + trafilatura) живёт в отдельном репо:
+# https://github.com/vakovalskii/searcharvester — поднимай оттуда своим compose.
+#
+# Запуск:
+#   docker compose up -d                            # инфра: postgres + seaweedfs
+#   docker compose --profile app up -d --build      # + core и web (деплой)
+#   docker compose up -d postgres                   # точечно один сервис
+#
+# Остановка:
+#   docker compose --profile "*" down
+
+# Явное имя проекта (совпадает с авто-именем от каталога — контейнеры и тома
+# не пересоздаются; фиксация против переименования каталога клона).
+name: bestfiend
+
+services:
+  # ── PostgreSQL + pgvector ──────────────────────────────────────
+  # Единственная БД bestfiend, таблицы монолита — в схеме `core`
+  # (см. infra/postgres-init/02-schemas.sql).
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: bestfiend-postgres
+    environment:
+      POSTGRES_DB: bestfiend
+      POSTGRES_USER: bestfiend
+      # Дефолт changeme — дев-стенд; на проде задаётся переменной окружения.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - "5433:5432"
+    volumes:
+      - bestfiend-postgres:/var/lib/postgresql/data
+      # Init-скрипты выполняются один раз при первой инициализации volume.
+      # Создают схему core и search_path роли (02-schemas.sql).
+      - ./infra/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bestfiend"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── SeaweedFS — S3-совместимое хранилище артефактов ────────────
+  # Dev-режим: S3-gateway без identity-config — на доверенной внутренней сети
+  # принимает любые креды (boto3 подписывает запрос, сервер не проверяет identity).
+  # Bucket создаётся программно через ArtifactsRuntime.start() (boto3 create_bucket).
+  # Для prod — добавить в command `-s3.config=/etc/seaweed/s3.json` с identity
+  # (accessKey/secretKey = ARTIFACT_S3_*), смонтировать файл (см. docs SeaweedFS).
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.40
+    container_name: bestfiend-seaweedfs
+    command: "server -s3 -dir=/data"
+    ports:
+      - "8333:8333"   # S3 API
+      - "8888:8888"   # filer HTTP (опц., прямое чтение/дебаг)
+    volumes:
+      - bestfiend-seaweedfs:/data
+    healthcheck:
+      # Проба filer: отвечает 200, когда master/volume/filer поднялись.
+      # S3-gateway стартует последним — но зависимым (core) нужен именно он,
+      # готовность filer её достаточно надёжно аппроксимирует.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8888/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── core-монолит (profile: app) ────────────────────────────────
+  # В дев-режиме core и web работают локальными процессами (scripts/dev.sh),
+  # профиль не нужен — под app поднимается контейнерный деплой.
+  core:
+    profiles: ["app"]
+    build:
+      context: ./core
+    image: bestfiend-core:local
+    pull_policy: build
+    container_name: bestfiend-core
+    # Секреты и настройки — из core/.env (gitignored).
+    env_file: core/.env
+    environment:
+      # Адреса compose-сети поверх core/.env (там — localhost для дев-процесса):
+      # это свойство раскладки контейнеров, не деплоя.
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      ARTIFACT_S3_ENDPOINT_URL: http://seaweedfs:8333
+      CORE_PORT: "8010"
+      # Тот же дефолт, что у postgres — пароль БД и клиента не разъезжаются.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - "8010:8010"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 1536M }
+    logging:
+      options: { max-size: "10m", max-file: "3" }
+
+  # ── web-админка (profile: app) — Caddy: статика + /api-прокси ──
+  web:
+    profiles: ["app"]
+    build:
+      context: ./web
+    image: bestfiend-web:local
+    pull_policy: build
+    container_name: bestfiend-web
+    ports:
+      # Только loopback: наружу web выходит через reverse-proxy хоста
+      # (Tailscale Funnel), прямой LAN-доступ не нужен.
+      - "127.0.0.1:8011:80"
+    volumes:
+      # База caddy объявляет VOLUME /config и /data — без явных имён
+      # анонимные тома плодились бы при каждом пересоздании контейнера.
+      - bestfiend-web-caddy-config:/config
+      - bestfiend-web-caddy-data:/data
+    depends_on:
+      core:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128M }
+    logging:
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  bestfiend-postgres:
+  bestfiend-seaweedfs:
+  bestfiend-web-caddy-config:
+  bestfiend-web-caddy-data:

@@ -1,0 +1,13 @@
+repos:
+  - repo: local
+    hooks:
+      # Единственный QA-хук на коммит. Работает через изолированный
+      # tools/qa/.venv (ruff/pyright/...) и проверяет ТОЛЬКО те сервисы,
+      # которые затронуты файлами коммита (--from-files принимает их от
+      # pre-commit, маппинг файл→сервис делает сам раннер).
+      - id: dev-code-fix
+        name: dev_code_fix (changed services)
+        entry: uv run --project tools/qa python tools/qa/dev_code_fix.py default --from-files
+        language: system
+        pass_filenames: true
+        types_or: [python, pyi]

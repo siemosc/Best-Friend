@@ -1,0 +1,15 @@
+[project]
+name = "bestfiend-qa-tools"
+version = "0.1.0"
+description = "Изолированный набор инструментов статического анализа для всего монорепо BestFiend."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "ruff>=0.14.6",
+    "pyright>=1.1.390",
+    "bandit>=1.7.0",
+    "vulture>=2.10",
+    "radon>=6.0.1",
+    "pre-commit>=4.6.0",
+    "pytest>=8.3.0",
+]

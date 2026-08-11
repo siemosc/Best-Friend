@@ -1,0 +1,82 @@
+# Зеркалирование репозитория в DarkLamb-ai/BestFriend.
+# Authentication: SSH deploy key (secret MIRROR_SSH_KEY).
+# Deploy Key зарегистрирован в DarkLamb-ai/BestFriend → Settings → Deploy keys
+# с правом Write access и привязан именно к этому одному репо.
+#
+# На каждый push/delete/тег workflow клонирует текущий репо как bare mirror,
+# фильтрует серверные refs/pull/* и пушит --mirror в командный репо.
+# Это односторонняя синхронизация: коммиты в DarkLamb-ai/BestFriend будут
+# затёрты при следующем запуске. Командный репо — read-only витрина.
+
+name: Mirror to DarkLamb-ai/BestFriend
+
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+  delete:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror-to-team
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Clone source as bare mirror
+        env:
+          SOURCE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --mirror \
+            "https://x-access-token:${SOURCE_TOKEN}@github.com/${{ github.repository }}.git" \
+            mirror.git
+
+      - name: Strip refs that cannot be pushed
+        working-directory: mirror.git
+        run: |
+          # refs/pull/* — серверные refs GitHub'а для PR'ов. Их нельзя пушить
+          # в другой репо, GitHub отклонит с "deny updating a hidden ref".
+          # Удаляем из локального mirror перед push, иначе push --mirror упадёт.
+          if git for-each-ref refs/pull/ --format='%(refname)' | grep -q .; then
+            git for-each-ref --format='delete %(refname)' refs/pull/ \
+              | git update-ref --stdin
+            echo "Stripped refs/pull/*"
+          else
+            echo "No refs/pull/* to strip"
+          fi
+          echo "Refs to be pushed:"
+          git for-each-ref --format='  %(refname)'
+
+      - name: Configure SSH deploy key
+        env:
+          MIRROR_SSH_KEY: ${{ secrets.MIRROR_SSH_KEY }}
+        run: |
+          # Настраиваем SSH для доступа к DarkLamb-ai/BestFriend через deploy key.
+          # Ключ пишем в ~/.ssh/mirror_key с правами 600 (иначе ssh откажется).
+          # known_hosts заполняем через ssh-keyscan, чтобы не словить prompt
+          # про "authenticity can't be established" в неинтерактивном режиме.
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${MIRROR_SSH_KEY}" > ~/.ssh/mirror_key
+          chmod 600 ~/.ssh/mirror_key
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Push mirror to team repo
+        working-directory: mirror.git
+        run: |
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/mirror_key -o IdentitiesOnly=yes -o UserKnownHostsFile=~/.ssh/known_hosts" \
+            git push --mirror git@github.com:DarkLamb-ai/BestFriend.git
+
+      - name: Cleanup SSH key
+        if: always()
+        run: |
+          # Ключ всё равно живёт только в эфемерной runner VM, но
+          # явное удаление уменьшает окно, в котором он лежит на диске.
+          rm -f ~/.ssh/mirror_key

@@ -1,0 +1,21 @@
+# Реплика dev vite-proxy для production-контура web-админки.
+# Слушаем голый :80 без hostname — перед Caddy стоит Tailscale Funnel, он терминирует TLS
+# и шлёт запросы с Host вида ded.tail2eac7e.ts.net:10000. Матчер по hostname здесь сломал бы
+# маршрутизацию, поэтому сайт-адрес именно :80 (чистый HTTP, никакого auto-https).
+:80 {
+	# Сжатие ответов
+	encode zstd gzip
+
+	# API-запросы уходят в core. handle_path срезает префикс /api, поэтому в core роут
+	# приходит без него: /api/mcp/oauth/callback -> /mcp/oauth/callback.
+	handle_path /api/* {
+		reverse_proxy core:8010
+	}
+
+	# Всё остальное — статика SPA с fallback на index.html (клиентский роутинг).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -1,0 +1,189 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ════════════════════════════ базовый слой ════════════════════════════ */
+@layer base {
+	:root {
+		color-scheme: dark;
+		/* фон приложения — глубокий navy-slate, чуть темнее карточек ради глубины */
+		--bg: #0a0e17;
+	}
+
+	html,
+	body {
+		height: 100%;
+		background-color: var(--bg);
+		color: #e5e7eb;
+	}
+
+	body {
+		font-family:
+			system-ui,
+			-apple-system,
+			'Segoe UI',
+			Roboto,
+			sans-serif;
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+	}
+
+	/* выделение текста в фирменном акценте */
+	::selection {
+		background-color: rgb(99 102 241 / 0.3);
+		color: #fff;
+	}
+
+	/* тонкий скроллбар в тон тёмной теме */
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: #374151 transparent;
+	}
+	*::-webkit-scrollbar {
+		width: 10px;
+		height: 10px;
+	}
+	*::-webkit-scrollbar-thumb {
+		background-color: #374151;
+		border-radius: 9999px;
+		border: 2px solid transparent;
+		background-clip: content-box;
+	}
+	*::-webkit-scrollbar-thumb:hover {
+		background-color: #4b5563;
+	}
+}
+
+/* ═══════════════════════════ компонентный слой ═══════════════════════════ */
+/* Повторяющиеся комбинации классов живут здесь — правка вида в одном месте.   */
+@layer components {
+	/* ─────────── контейнер страницы ─────────── */
+	.page {
+		@apply mx-auto px-4 py-8;
+	}
+	.page-title {
+		@apply text-2xl font-semibold tracking-tight text-white;
+	}
+	.page-sub {
+		@apply mt-1 text-sm text-gray-400;
+	}
+
+	/* ─────────── поверхности ─────────── */
+	.surface {
+		@apply rounded-xl border border-gray-800/80 bg-gray-900/50 shadow-card;
+	}
+	.card {
+		@apply surface p-5;
+	}
+
+	/* шапка секции: цветная иконка-плашка + заголовок + подпись */
+	.section-head {
+		@apply flex items-start gap-3;
+	}
+	.section-icon {
+		@apply flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-lg;
+	}
+	.section-title {
+		@apply text-lg font-medium leading-tight text-gray-100;
+	}
+	.section-sub {
+		@apply mt-0.5 text-xs text-gray-400;
+	}
+
+	/* ─────────── кнопки ─────────── */
+	.btn {
+		@apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium
+			transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2
+			focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950
+			disabled:cursor-not-allowed disabled:opacity-40;
+	}
+	.btn-sm {
+		@apply gap-1.5 px-2.5 py-1.5 text-xs;
+	}
+	.btn-primary {
+		@apply btn bg-indigo-600 text-white shadow-sm shadow-indigo-950/40
+			hover:bg-indigo-500 focus-visible:ring-indigo-500;
+	}
+	.btn-secondary {
+		@apply btn border border-gray-700 bg-gray-800 text-gray-200
+			hover:border-gray-600 hover:bg-gray-700 focus-visible:ring-gray-600;
+	}
+	.btn-ghost {
+		@apply btn text-gray-400 hover:bg-gray-800/70 hover:text-white focus-visible:ring-gray-700;
+	}
+	.btn-danger {
+		@apply btn border border-red-800/70 bg-red-950/50 text-red-300
+			hover:bg-red-900/60 focus-visible:ring-red-700;
+	}
+
+	/* ─────────── поля ввода ─────────── */
+	.input {
+		@apply w-full rounded-lg border border-gray-700/80 bg-gray-900/70 px-3 py-2 text-sm text-gray-100
+			transition-colors placeholder:text-gray-600
+			focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20;
+	}
+	.input-sm {
+		@apply px-2.5 py-1.5;
+	}
+	.field-label {
+		@apply mb-1 block text-xs font-medium text-gray-400;
+	}
+
+	/* ─────────── бейджи ─────────── */
+	.badge {
+		@apply inline-flex items-center gap-1 whitespace-nowrap rounded border px-1.5 py-0.5
+			text-[10px] font-semibold uppercase tracking-wider;
+	}
+
+	/* ─────────── чипы-фильтры ─────────── */
+	.chip {
+		@apply rounded-full border px-2 py-1 text-xs transition-colors;
+	}
+	.chip-off {
+		@apply border-gray-700 bg-gray-900 text-gray-400 hover:text-white;
+	}
+
+	/* ─────────── алерты ─────────── */
+	.alert {
+		@apply rounded-lg border p-3 text-sm;
+	}
+	.alert-error {
+		@apply alert border-red-800/70 bg-red-950/40 text-red-300;
+	}
+	.alert-success {
+		@apply alert border-green-800/70 bg-green-950/40 text-green-300;
+	}
+	.alert-warn {
+		@apply alert border-amber-800/70 bg-amber-950/40 text-amber-200;
+	}
+
+	/* ─────────── таблицы данных ─────────── */
+	.table-wrap {
+		@apply overflow-x-auto rounded-lg border border-gray-800;
+	}
+	.data-table {
+		@apply w-full text-sm;
+	}
+	.data-table thead {
+		@apply bg-gray-950/60 text-gray-400;
+	}
+	.data-table th {
+		@apply px-3 py-2 text-left font-normal;
+	}
+	.data-table td {
+		@apply px-3 py-2;
+	}
+	.data-table tbody tr {
+		@apply border-t border-gray-800 transition-colors hover:bg-gray-950/40;
+	}
+
+	/* ─────────── пустое состояние ─────────── */
+	.empty-state {
+		@apply py-8 text-center text-sm text-gray-500;
+	}
+
+	/* ─────────── спиннер (размер задаётся утилитами h-/w-) ─────────── */
+	.spinner {
+		@apply inline-block animate-spin rounded-full border-2 border-gray-700 border-t-indigo-500;
+	}
+}
